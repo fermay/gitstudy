@@ -7,7 +7,7 @@ on:
     # triggers on created, edited and deleted by default, you may wanna restrict it, e.g.:
     #types: [created]
 jobs:
-  pr_commented:
+  prcommented:
     name: PR commented
     if: github.event.issue.pull_request
     runs-on: ubuntu-latest
