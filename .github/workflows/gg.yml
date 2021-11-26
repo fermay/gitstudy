@@ -1,17 +1,12 @@
-name: integration-test
- 
 on:
   issue_comment:
     types: [ created ]
-
-
+name: Commented Pull Request
 jobs:
   pullRequestHandler:
     name: PullRequestHandler
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
     - name: PullRequestHandler
-      uses: Ash258/Scoop-GithubActions@stable
       if: startsWith(github.event.comment.body, '/verify')
       run: echo hello
