@@ -8,7 +8,6 @@ on:
     #types: [created]
 jobs:
   KKJ:
-    name: PR commented
     if: github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
