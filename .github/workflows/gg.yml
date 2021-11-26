@@ -11,7 +11,7 @@ jobs:
         id: check
         with:
           prefix_only: true 
-          trigger: '@ci@'
+          trigger: 'ci'
           reaction: rocket
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
@@ -50,7 +50,13 @@ jobs:
         id: debug
         run: |
           echo ::set-output name=sha::$( curl -u "u:${{github.token}}" https://api.github.com/repos/${{steps.pr_data.outputs.repo_name}}/git/ref/heads/${{steps.pr_data.outputs.branch}} | jq .object.sha | tr -d '"' )
-           
+         
+      - name: Build with Maven
+        if: steps.check.outputs.triggered == 'true'
+
+        run: |
+          echo hello world
+        
       - name: Publish Test Report
         if: steps.check.outputs.triggered == 'true' && (failure() || success())
         uses: scacap/action-surefire-report@v1
