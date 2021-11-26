@@ -1,31 +1,61 @@
+name: integration-test
+ 
 on:
-  workflow_dispatch:
   issue_comment:
-    types: [created, edited]
-
+    types: [created]
 jobs:
-  my_job:
-    runs-on: macos-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request && contains( github.event.comment.body, 'my-special-message' )) }}
+  ci:
+    runs-on: ubuntu-latest
     steps:
-    
-      - name: Extracting PR route
-        if: ${{ github.event.issue.pull_request }}
-        id: extracting_route
-        run: |
-          echo "::set-output name=route::$(echo ${{ github.event.issue.pull_request.url }}  | sed s-https://api.github.com--)"
-          
-      - name: Getting PR data
-        if: ${{ github.event.issue.pull_request }}
-        id: pr_data
-        uses: octokit/request-action@v2.x
+      - uses: khan/pull-request-comment-trigger@master
+        id: check
         with:
-          route: GET ${{ steps.extracting_route.outputs.route }}
+          prefix_only: true 
+          trigger: '@ci@'
+          reaction: rocket
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+     
+      - name: Github API Request
+        if: steps.check.outputs.triggered == 'true'
+        id: request
+        uses: octokit/request-action@v2.0.0
+        with:
+          route: ${{ github.event.issue.pull_request.url }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Checkout PRed branch
+      - name: Get PR informations
+        if: steps.check.outputs.triggered == 'true'
+        id: pr_data
+        run: |
+          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
+          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
+          echo "::set-output name=repo_clone_url::${{ fromJson(steps.request.outputs.data).head.repo.clone_url }}"
+          echo "::set-output name=repo_ssh_url::${{ fromJson(steps.request.outputs.data).head.repo.ssh_url }}"
+      - name: Checkout PR Branch
+        if: steps.check.outputs.triggered == 'true'
         uses: actions/checkout@v2
-        if: ${{ github.event.issue.pull_request }}
         with:
-          ref: ${{ fromJson(steps.pr_data.outputs.data).head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ fromJson(steps.request.outputs.data).head.repo.full_name }}
+          ref: ${{ steps.pr_data.outputs.branch }}
+      
+      - name: debug
+        if: steps.check.outputs.triggered == 'true'
+        id: debug
+        run: |
+          echo ::set-output name=sha::$( curl -u "u:${{github.token}}" https://api.github.com/repos/${{steps.pr_data.outputs.repo_name}}/git/ref/heads/${{steps.pr_data.outputs.branch}} | jq .object.sha | tr -d '"' )
+        
+      - name: Build with Maven
+        if: steps.check.outputs.triggered == 'true'
+
+        run: |
+          echo hello
+     
+      - name: Publish Test Report
+        if: steps.check.outputs.triggered == 'true' && (failure() || success())
+        uses: scacap/action-surefire-report@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          commit: ${{ steps.debug.outputs.sha }}
+          check_name: integration_test_results         
