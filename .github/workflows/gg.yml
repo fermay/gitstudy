@@ -2,66 +2,16 @@ name: integration-test
  
 on:
   issue_comment:
-    types: [created]
+    types: [ created ]
+
+
 jobs:
-  ci:
+  pullRequestHandler:
+    name: PullRequestHandler
     runs-on: ubuntu-latest
     steps:
-      - uses: khan/pull-request-comment-trigger@master
-        id: check
-        with:
-          prefix_only: true 
-          trigger: 'ci'
-          reaction: rocket
-        env:
-          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
-          
-      - name: Github API Request
-        if: steps.check.outputs.triggered == 'true'
-        id: request
-        uses: octokit/request-action@v2.0.0
-        with:
-          route: ${{ github.event.issue.pull_request.url }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Get PR informations
-        if: steps.check.outputs.triggered == 'true'
-        id: pr_data
-        run: |
-          echo "::set-output name=branch::${{ fromJson(steps.request.outputs.data).head.ref }}"
-          echo "::set-output name=repo_name::${{ fromJson(steps.request.outputs.data).head.repo.full_name }}"
-          echo "::set-output name=repo_clone_url::${{ fromJson(steps.request.outputs.data).head.repo.clone_url }}"
-          echo "::set-output name=repo_ssh_url::${{ fromJson(steps.request.outputs.data).head.repo.ssh_url }}"
-      - name: Checkout PR Branch
-        if: steps.check.outputs.triggered == 'true'
-        uses: actions/checkout@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ fromJson(steps.request.outputs.data).head.repo.full_name }}
-          ref: ${{ steps.pr_data.outputs.branch }}
-      - name: Set up JDK 1.8
-        if: steps.check.outputs.triggered == 'true'
-        uses: actions/setup-java@v1
-        with:
-          java-version: 1.8
-      
-      - name: debug
-        if: steps.check.outputs.triggered == 'true'
-        id: debug
-        run: |
-          echo ::set-output name=sha::$( curl -u "u:${{github.token}}" https://api.github.com/repos/${{steps.pr_data.outputs.repo_name}}/git/ref/heads/${{steps.pr_data.outputs.branch}} | jq .object.sha | tr -d '"' )
-         
-      - name: Build with Maven
-        if: steps.check.outputs.triggered == 'true'
-
-        run: |
-          echo hello world
-        
-      - name: Publish Test Report
-        if: steps.check.outputs.triggered == 'true' && (failure() || success())
-        uses: scacap/action-surefire-report@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          commit: ${{ steps.debug.outputs.sha }}
-          check_name: integration_test_results   
-          
+    - uses: actions/checkout@main
+    - name: PullRequestHandler
+      uses: Ash258/Scoop-GithubActions@stable
+      if: startsWith(github.event.comment.body, '/verify')
+      run: echo hello
