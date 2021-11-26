@@ -1,25 +1,25 @@
-name: commentcheck
 on:
+  workflow_dispatch:
   issue_comment:
-    types: [created, edited, deleted]
+    types: [created, edited]
 
 jobs:
- job01:
-    if: contains(github.event.comment.html_url, '/pull/') && contains(github.event.comment.body, 'commenttest')
-    runs-on: [ubuntu-latest]
+  my_job:
+    runs-on: macos-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request && contains( github.event.comment.body, 'my-special-message' )) }}
     steps:
-      - name: Dump GitHub context
-        env:
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-        run: echo "$GITHUB_CONTEXT"
-
-
-
-      - name: Report failure
+    
+      - name: Extracting PR route
+        if: ${{ github.event.issue.pull_request }}
+        id: extracting_route
         run: |
-          curl --request POST \
-          --url https://api.github.com/repos/OWNER/REPO/statuses/${{ sha }} \
-          --header 'authorization: token ${{ secrets.PAT }}' \
-          --header 'content-type: application/json' \
-          --data '{"state": "failure","target_url": "https://example.com/build/status","description": "The tests failed!","context": "ci/tests"}'
-        if: failure()
+          echo "::set-output name=route::$(echo ${{ github.event.issue.pull_request.url }}  | sed s-https://api.github.com--)"
+          
+      - name: Getting PR data
+        if: ${{ github.event.issue.pull_request }}
+        id: pr_data
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET ${{ steps.extracting_route.outputs.route }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
